@@ -1,14 +1,20 @@
 # Python Project Starter -
 
 ## Project Structure
-.
-├── main.py                 # Entry point - starts the application
-├── data/                   # Data Layer - handles storage and retrieval
-├── gui/                    # GUI Layer - handles user interface
-│   ├── main_window.py      # Main application window class
-│   ├── login_gui.py        # Login GUI class
-│   └── account_gui.py      # Account GUI class
-└── application/            # Application Layer - handles core logic
+
+```text
+CSE222-python-project-starter-code/
+├── main.py
+├── application/
+│   └── README.md
+├── data/
+│   └── README.md
+└── gui/
+    ├── README.md
+    ├── main_window.py
+    ├── login_gui.py
+    └── account_gui.py
+```
 
 ## Project Organization
 

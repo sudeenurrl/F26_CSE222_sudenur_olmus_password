@@ -1,0 +1,2 @@
+class AccountGUI:
+    pass

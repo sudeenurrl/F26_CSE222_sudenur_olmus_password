@@ -1,0 +1,2 @@
+class LoginGui:
+    pass

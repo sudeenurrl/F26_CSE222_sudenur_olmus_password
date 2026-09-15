@@ -1,2 +1,2 @@
 class AccountGUI:
-    pass
+    print("test")

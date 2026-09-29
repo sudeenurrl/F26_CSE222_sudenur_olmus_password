@@ -1,11 +1,13 @@
-"""Account Creation window class for Password Manager Milestone 1."""
+"""Account Creation window class for Password Manager Milestone 2."""
 
 import tkinter as tk
 from tkinter import messagebox, ttk
 
+from application.account_service import AccountValidationError, create_account
+
 
 class AccountGUI(tk.Toplevel):
-    """Show the initial account-creation form and its instructions."""
+    """Create a validated account and close when the account is saved."""
 
     def __init__(self, parent):
         super().__init__(parent)
@@ -41,10 +43,13 @@ class AccountGUI(tk.Toplevel):
         self._add_entry(frame, "Password:", self.password, 3, "*")
         self._add_entry(frame, "Confirm password:", self.confirm_password, 4, "*")
 
-        ttk.Button(frame, text="Create Account",
-                   command=self.show_milestone_message).grid(
-                       column=0, row=5, columnspan=2, pady=(14, 0)
-                   )
+        buttons = ttk.Frame(frame)
+        buttons.grid(column=0, row=5, columnspan=2, pady=(14, 0))
+        ttk.Button(buttons, text="Create Account", command=self.create_account).grid(
+            column=0, row=0, padx=(0, 8)
+        )
+        ttk.Button(buttons, text="Cancel", command=self.destroy).grid(column=1, row=0)
+        self.bind("<Return>", lambda event: self.create_account())
 
     def _add_entry(self, frame, label, variable, row, show=None):
         ttk.Label(frame, text=label).grid(
@@ -53,13 +58,28 @@ class AccountGUI(tk.Toplevel):
         ttk.Entry(frame, textvariable=variable, show=show, justify="right",
                   width=33).grid(column=1, row=row, sticky="ew", pady=5)
 
-    def show_milestone_message(self):
-        """Keep the required button active before its Milestone 2 logic exists."""
+    def create_account(self):
+        """Validate the form, save the account, and report useful errors."""
+        password = self.password.get()
+        if password != self.confirm_password.get():
+            messagebox.showerror(
+                "Account Error", "The two passwords do not match.", parent=self
+            )
+            self.password.set("")
+            self.confirm_password.set("")
+            return
+        try:
+            create_account(self.username.get(), password)
+        except AccountValidationError as error:
+            messagebox.showerror("Account Error", str(error), parent=self)
+            self.password.set("")
+            self.confirm_password.set("")
+            return
         messagebox.showinfo(
-            "Milestone 1",
-            "Account validation and file storage are implemented in Milestone 2.",
+            "Account Created", "Your account was created. You may now log in.",
             parent=self
         )
+        self.destroy()
 
     def _center_over_parent(self, parent):
         self.update_idletasks()

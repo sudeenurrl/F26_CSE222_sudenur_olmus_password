@@ -1,8 +1,12 @@
-"""Entry point for the application."""
+"""Entry point for the CSE 222 Password Manager Milestone 1 program."""
+
+from gui.main_window import MainWindow
 
 
 def main():
-    pass
+    """Create and start the opening Password Manager window."""
+    app = MainWindow()
+    app.mainloop()
 
 
 if __name__ == "__main__":

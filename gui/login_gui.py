@@ -1,17 +1,20 @@
-"""Login window class for Password Manager Milestone 1."""
+"""Login window class for Password Manager Milestone 2."""
 
 import tkinter as tk
 from tkinter import messagebox, ttk
 
+from application.account_service import AccountValidationError, verify_account
+
 
 class LoginGUI(tk.Toplevel):
-    """Show the initial login form and its instructions."""
+    """Verify account credentials and notify the main window after login."""
 
-    def __init__(self, parent):
+    def __init__(self, parent, on_success):
         super().__init__(parent)
         self.title("Login")
         self.resizable(False, False)
         self.transient(parent)
+        self.on_success = on_success
         self._build_interface()
         self.bind("<Return>", lambda event: self.login())
         self._center_over_parent(parent)
@@ -25,8 +28,7 @@ class LoginGUI(tk.Toplevel):
         )
         ttk.Label(
             frame,
-            text=("Enter your username and password. Account verification is "
-                  "completed in Milestone 2."),
+            text="Enter the username and password you created.",
             wraplength=350
         ).grid(column=0, row=1, columnspan=2, sticky="w", pady=(0, 14))
 
@@ -35,25 +37,47 @@ class LoginGUI(tk.Toplevel):
         ttk.Label(frame, text="Username:").grid(
             column=0, row=2, sticky="e", padx=(0, 8), pady=5
         )
-        ttk.Entry(frame, textvariable=self.username, justify="right", width=30).grid(
+        self.username_entry = ttk.Entry(
+            frame, textvariable=self.username, justify="right", width=30
+        )
+        self.username_entry.grid(
             column=1, row=2, pady=5
         )
         ttk.Label(frame, text="Password:").grid(
             column=0, row=3, sticky="e", padx=(0, 8), pady=5
         )
-        ttk.Entry(frame, textvariable=self.password, show="*", justify="right",
-                  width=30).grid(column=1, row=3, pady=5)
-        ttk.Button(frame, text="Login", command=self.login).grid(
-            column=0, row=4, columnspan=2, pady=(14, 0)
+        self.password_entry = ttk.Entry(
+            frame, textvariable=self.password, show="*", justify="right", width=30
+        )
+        self.password_entry.grid(column=1, row=3, pady=5)
+        buttons = ttk.Frame(frame)
+        buttons.grid(column=0, row=4, columnspan=2, pady=(14, 0))
+        self.login_button = ttk.Button(buttons, text="Login", command=self.login)
+        self.login_button.grid(column=0, row=0, padx=(0, 8))
+        ttk.Button(buttons, text="Cancel", command=self.destroy).grid(column=1, row=0)
+        self.password_entry.focus_set()
         )
 
     def login(self):
-        """Keep the required Login control working before Milestone 2."""
-        messagebox.showinfo(
-            "Milestone 1",
-            "Login verification and the main interface are implemented in Milestone 2.",
-            parent=self
-        )
+        """Verify saved credentials and clear invalid password input."""
+        # Disable first to avoid duplicate login attempts from repeated clicks.
+        self.login_button.configure(state="disabled")
+        try:
+            verified = verify_account(self.username.get(), self.password.get())
+        except AccountValidationError as error:
+            messagebox.showerror("Login Error", str(error), parent=self)
+            verified = False
+        if not verified:
+            messagebox.showerror(
+                "Login Error", "The username or password is not valid.", parent=self
+            )
+            self.password_entry.delete(0, tk.END)
+            self.login_button.configure(state="normal")
+            self.password_entry.focus_set()
+            return
+        username = self.username.get().strip()
+        self.destroy()
+        self.on_success(username)
 
     def _center_over_parent(self, parent):
         self.update_idletasks()

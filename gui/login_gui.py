@@ -56,7 +56,6 @@ class LoginGUI(tk.Toplevel):
         self.login_button.grid(column=0, row=0, padx=(0, 8))
         ttk.Button(buttons, text="Cancel", command=self.destroy).grid(column=1, row=0)
         self.password_entry.focus_set()
-        )
 
     def login(self):
         """Verify saved credentials and clear invalid password input."""

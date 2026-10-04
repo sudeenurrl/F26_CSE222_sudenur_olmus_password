@@ -86,3 +86,17 @@ def create_account(username, password):
         "password_hash": _hash_password(password, salt),
     }
     _save_accounts(accounts)
+
+
+def verify_account(username, password):
+    """Return True only when the saved account credentials match."""
+    try:
+        cleaned_username = validate_username(username)
+    except AccountValidationError:
+        return False
+
+    account = _read_accounts().get(cleaned_username.casefold())
+    if account is None:
+        return False
+    supplied_hash = _hash_password(password, account["salt"])
+    return secrets.compare_digest(account["password_hash"], supplied_hash)

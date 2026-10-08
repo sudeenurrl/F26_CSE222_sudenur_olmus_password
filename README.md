@@ -1,67 +1,54 @@
-# Python Project Starter -
+# CSE222 Password Manager — Milestone 2
 
-## Project Structure
+A Python desktop application built with Tkinter. It supports account creation,
+password validation, and login with persistent local accounts.
 
-```text
-CSE222-python-project-starter-code/
-├── main.py
-├── application/
-│   └── README.md
-├── data/
-│   └── README.md
-└── gui/
-    ├── README.md
-    ├── main_window.py
-    ├── login_gui.py
-    └── account_gui.py
+## Run
+
+Use Python 3.8 or newer with Tkinter installed. From this project directory:
+
+```sh
+python3 main.py
 ```
 
-## Project Organization
+The application uses only the Python standard library. If importing `tkinter`
+fails, use a Python installation that includes Tk support.
 
-- Data Layer - Handles all data storage and retrieval
-- GUI Layer - Handles the user interface and display
-- Application Layer - Handles the core logic and business rules
+## Test
 
-### Data Layer (data/)
-Responsible for:
+```sh
+python3 -B -m unittest discover -s tests -v
+```
 
-- Storing and retrieving account information
-- File I/O operations
-- Data persistence
+Tests use temporary directories for account data and mocked GUI callbacks;
+they do not open windows or change your saved accounts.
 
-Example Implementation:
+## Current features
 
-- Implement functions to save accounts to a file
-- Implement functions to load accounts from storage
-- Implement functions to retrieve account data when needed
+- Create an account with a unique, case-insensitive username.
+- Require at least nine password characters, with uppercase, lowercase, and a digit.
+- Confirm the password before saving the account.
+- Store salted PBKDF2-SHA256 password hashes in `data/accounts.json`.
+- Validate saved records and report unreadable or malformed account data.
+- Write accounts through a temporary file so failed saves preserve existing data.
+- Log in and log out; account dialogs are modal.
 
-### GUI Layer (gui/)
-Responsible for:
+The post-login form is preparation for later milestones. Update displays an
+informational message; Search and Display All are disabled. Password-entry
+storage and retrieval are not implemented in Milestone 2.
 
-- Creating and managing windows
-- Displaying user interface components
-- Capturing user input
-- Triggering business logic through buttons/events
+## Project structure
 
-Example Implementation:
+```text
+main.py                         Application entry point
+application/account_service.py  Account validation, hashing, and persistence
+gui/main_window.py              Opening and post-login screens
+gui/account_gui.py              Account creation dialog
+gui/login_gui.py                Login dialog
+data/                           Local account storage
+tests/                          Service and login callback tests
+```
 
-- Implement the main window with login and create account buttons
-- Implement the login window with username and password entry
-- Implement the account creation window with validation feedback
-- Implement event handlers for buttons and entry fields
-- Connect GUI components to business layer functions
-
-### Application Layer (application/)
-Responsible for:
-
-- Account creation logic
-- Login verification
-- Password validation
-- Business rules enforcement
-
-Example Implementation:
-
-- Implement account creation logic (validation, uniqueness check, storage)
-- Implement login verification (checking credentials)
-- Implement password strength validation (minimum 9 characters, uppercase, lowercase, digit)
-- Handle business logic errors and return appropriate feedback
+Local account files, Python caches, virtual environments, and macOS metadata
+are ignored by Git. Account storage is intended for one running application
+instance at a time.

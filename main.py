@@ -1,4 +1,4 @@
-"""Entry point for the CSE 222 Password Manager Milestone 1 program."""
+"""Entry point for the CSE 222 Password Manager Milestone 2 program."""
 
 from gui.main_window import MainWindow
 

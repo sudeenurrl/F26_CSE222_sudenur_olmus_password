@@ -55,7 +55,7 @@ class LoginGUI(tk.Toplevel):
         self.login_button = ttk.Button(buttons, text="Login", command=self.login)
         self.login_button.grid(column=0, row=0, padx=(0, 8))
         ttk.Button(buttons, text="Cancel", command=self.destroy).grid(column=1, row=0)
-        self.password_entry.focus_set()
+        self.username_entry.focus_set()
 
     def login(self):
         """Verify saved credentials and clear invalid password input."""
@@ -66,10 +66,12 @@ class LoginGUI(tk.Toplevel):
         except AccountValidationError as error:
             messagebox.showerror("Login Error", str(error), parent=self)
             verified = False
+        else:
+            if not verified:
+                messagebox.showerror(
+                    "Login Error", "The username or password is not valid.", parent=self
+                )
         if not verified:
-            messagebox.showerror(
-                "Login Error", "The username or password is not valid.", parent=self
-            )
             self.password_entry.delete(0, tk.END)
             self.login_button.configure(state="normal")
             self.password_entry.focus_set()

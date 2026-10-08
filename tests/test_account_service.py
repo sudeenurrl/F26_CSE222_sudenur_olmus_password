@@ -1,5 +1,6 @@
 """Automated checks for Milestone 2 account validation and persistence."""
 
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -34,6 +35,22 @@ class AccountServiceTests(unittest.TestCase):
     def test_invalid_password_is_rejected(self):
         with self.assertRaises(account_service.AccountValidationError):
             account_service.create_account("Sudenur", "short1A")
+
+    def test_malformed_records_raise_useful_error(self):
+        invalid_records = [None, {}, {"username": "Sudenur", "salt": "bad",
+                                        "password_hash": "bad"}]
+        for record in invalid_records:
+            with self.subTest(record=record):
+                account_service.ACCOUNTS_FILE.write_text(
+                    json.dumps({"sudenur": record}), encoding="utf-8"
+                )
+                with self.assertRaises(account_service.AccountValidationError):
+                    account_service.verify_account("Sudenur", "StrongPass1")
+
+    def test_corrupt_json_raises_useful_error(self):
+        account_service.ACCOUNTS_FILE.write_text("{", encoding="utf-8")
+        with self.assertRaises(account_service.AccountValidationError):
+            account_service.verify_account("Sudenur", "StrongPass1")
 
     def test_incorrect_password_does_not_verify(self):
         account_service.create_account("Sudenur", "StrongPass1")

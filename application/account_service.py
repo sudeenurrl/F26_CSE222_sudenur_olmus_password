@@ -48,6 +48,22 @@ def _read_accounts():
         raise AccountValidationError("Saved account data could not be read.") from error
     if not isinstance(accounts, dict):
         raise AccountValidationError("Saved account data has an invalid format.")
+    for key, account in accounts.items():
+        if not isinstance(key, str) or not isinstance(account, dict):
+            raise AccountValidationError("Saved account data has an invalid format.")
+        username = account.get("username")
+        salt = account.get("salt")
+        password_hash = account.get("password_hash")
+        if (
+            not isinstance(username, str)
+            or not username.strip()
+            or username.strip().casefold() != key
+            or not isinstance(salt, str)
+            or re.fullmatch(r"[0-9a-fA-F]{32}", salt) is None
+            or not isinstance(password_hash, str)
+            or re.fullmatch(r"[0-9a-fA-F]{64}", password_hash) is None
+        ):
+            raise AccountValidationError("Saved account data has an invalid format.")
     return accounts
 
 

@@ -26,6 +26,7 @@ class MainWindow(tk.Tk):
     def show_start_screen(self):
         """Display Create Account, Login, and Cancel controls."""
         self._clear_window()
+        self.geometry("520x330")
         frame = ttk.Frame(self, padding=32)
         frame.pack(expand=True, fill="both")
 
@@ -61,6 +62,7 @@ class MainWindow(tk.Tk):
     def show_main_interface(self, username):
         """Replace the opening screen after a successful account login."""
         self._clear_window()
+        self.geometry("600x420")
         frame = ttk.Frame(self, padding=24)
         frame.pack(expand=True, fill="both")
 

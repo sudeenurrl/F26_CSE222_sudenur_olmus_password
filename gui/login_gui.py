@@ -18,6 +18,7 @@ class LoginGUI(tk.Toplevel):
         self._build_interface()
         self.bind("<Return>", lambda event: self.login())
         self._center_over_parent(parent)
+        self.grab_set()
 
     def _build_interface(self):
         frame = ttk.Frame(self, padding=20)

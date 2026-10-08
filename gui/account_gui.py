@@ -16,6 +16,7 @@ class AccountGUI(tk.Toplevel):
         self.transient(parent)
         self._build_interface()
         self._center_over_parent(parent)
+        self.grab_set()
 
     def _build_interface(self):
         frame = ttk.Frame(self, padding=20)
@@ -55,8 +56,11 @@ class AccountGUI(tk.Toplevel):
         ttk.Label(frame, text=label).grid(
             column=0, row=row, sticky="e", padx=(0, 8), pady=5
         )
-        ttk.Entry(frame, textvariable=variable, show=show, justify="right",
-                  width=33).grid(column=1, row=row, sticky="ew", pady=5)
+        entry = ttk.Entry(frame, textvariable=variable, show=show, justify="right",
+                          width=33)
+        entry.grid(column=1, row=row, sticky="ew", pady=5)
+        if row == 2:
+            entry.focus_set()
 
     def create_account(self):
         """Validate the form, save the account, and report useful errors."""

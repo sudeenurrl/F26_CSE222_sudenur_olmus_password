@@ -5,6 +5,7 @@ import json
 import os
 import re
 import secrets
+import tempfile
 from pathlib import Path
 
 
@@ -69,14 +70,24 @@ def _read_accounts():
 
 def _save_accounts(accounts):
     """Write account data through a temporary file to avoid partial saves."""
-    DATA_DIRECTORY.mkdir(exist_ok=True)
-    temporary_file = ACCOUNTS_FILE.with_suffix(".tmp")
+    temporary_file = None
     try:
-        with temporary_file.open("w", encoding="utf-8") as account_file:
+        DATA_DIRECTORY.mkdir(parents=True, exist_ok=True)
+        with tempfile.NamedTemporaryFile(
+            mode="w", encoding="utf-8", dir=DATA_DIRECTORY,
+            prefix="accounts-", suffix=".tmp", delete=False
+        ) as account_file:
+            temporary_file = Path(account_file.name)
             json.dump(accounts, account_file, indent=2)
         os.replace(temporary_file, ACCOUNTS_FILE)
     except OSError as error:
         raise AccountValidationError("Account data could not be saved.") from error
+    finally:
+        if temporary_file is not None:
+            try:
+                temporary_file.unlink(missing_ok=True)
+            except OSError:
+                pass
 
 
 def _hash_password(password, salt):

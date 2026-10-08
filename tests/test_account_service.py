@@ -4,6 +4,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from application import account_service
 
@@ -51,6 +52,23 @@ class AccountServiceTests(unittest.TestCase):
         account_service.ACCOUNTS_FILE.write_text("{", encoding="utf-8")
         with self.assertRaises(account_service.AccountValidationError):
             account_service.verify_account("Sudenur", "StrongPass1")
+
+    def test_failed_save_preserves_existing_accounts_and_cleans_temp_file(self):
+        account_service.create_account("Sudenur", "StrongPass1")
+        original_data = account_service.ACCOUNTS_FILE.read_bytes()
+        with patch.object(account_service.os, "replace", side_effect=OSError):
+            with self.assertRaises(account_service.AccountValidationError):
+                account_service.create_account("Another", "StrongPass2")
+        self.assertEqual(account_service.ACCOUNTS_FILE.read_bytes(), original_data)
+        self.assertEqual(list(account_service.DATA_DIRECTORY.glob("*.tmp")), [])
+
+    def test_directory_creation_failure_raises_useful_error(self):
+        blocked_path = account_service.DATA_DIRECTORY / "blocked"
+        blocked_path.write_text("file", encoding="utf-8")
+        account_service.DATA_DIRECTORY = blocked_path
+        account_service.ACCOUNTS_FILE = blocked_path / "accounts.json"
+        with self.assertRaises(account_service.AccountValidationError):
+            account_service.create_account("Sudenur", "StrongPass1")
 
     def test_incorrect_password_does_not_verify(self):
         account_service.create_account("Sudenur", "StrongPass1")

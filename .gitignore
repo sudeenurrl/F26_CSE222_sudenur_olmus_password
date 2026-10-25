@@ -15,3 +15,7 @@ venv/
 /data/accounts.json
 /data/accounts.tmp
 /data/accounts-*.tmp
+
+# Local password-entry data
+/data/password_entries.json
+/data/password_entries-*.tmp

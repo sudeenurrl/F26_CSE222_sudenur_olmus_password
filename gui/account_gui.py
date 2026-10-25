@@ -50,13 +50,18 @@ class AccountGUI(tk.Toplevel):
             column=0, row=0, padx=(0, 8)
         )
         ttk.Button(buttons, text="Cancel", command=self.destroy).grid(column=1, row=0)
-        self.bind("<Return>", lambda event: self.create_account())
+        self.bind("<Return>", self._handle_return)
+
+    def _handle_return(self, event):
+        """Create an account when Enter is pressed in a form field."""
+        if event.keysym == "Return":
+            self.create_account()
 
     def _add_entry(self, frame, label, variable, row, show=None):
         ttk.Label(frame, text=label).grid(
             column=0, row=row, sticky="e", padx=(0, 8), pady=5
         )
-        entry = ttk.Entry(frame, textvariable=variable, show=show, justify="right",
+        entry = ttk.Entry(frame, textvariable=variable, show=show, justify="left",
                           width=33)
         entry.grid(column=1, row=row, sticky="ew", pady=5)
         if row == 2:

@@ -88,7 +88,7 @@ class MainWindow(tk.Tk):
         controls = ttk.Frame(frame)
         controls.grid(column=0, row=6, columnspan=3, sticky="w", pady=(18, 0))
         self.update_button = ttk.Button(
-            controls, text="Update", command=self._show_future_operation, state="disabled"
+            controls, text="Update", command=self._show_future_operation
         )
         self.update_button.grid(column=0, row=0, padx=(0, 8))
         ttk.Button(controls, text="Search", state="disabled").grid(
@@ -100,8 +100,6 @@ class MainWindow(tk.Tk):
         ttk.Button(controls, text="Log Out", command=self.show_start_screen).grid(
             column=3, row=0, padx=8
         )
-        for variable in (self.description, self.entry_username, self.entry_password):
-            variable.trace_add("write", self._update_button_state)
         frame.columnconfigure(1, weight=1)
 
     def _add_main_entry(self, frame, label, variable, row, show=None):
@@ -110,20 +108,23 @@ class MainWindow(tk.Tk):
             column=0, row=row, sticky="e", padx=(0, 8), pady=6
         )
         ttk.Entry(
-            frame, textvariable=variable, show=show, justify="right", width=42
+            frame, textvariable=variable, show=show, justify="left", width=42
         ).grid(column=1, row=row, columnspan=2, sticky="ew", pady=6)
 
-    def _update_button_state(self, *_args):
-        """Allow Update only after all entry fields contain text."""
-        has_complete_entry = all(
+    def _show_future_operation(self):
+        """Validate the password-entry form without saving it."""
+        from tkinter import messagebox
+
+        if not all(
             value.get().strip()
             for value in (self.description, self.entry_username, self.entry_password)
-        )
-        self.update_button.configure(state="normal" if has_complete_entry else "disabled")
-
-    def _show_future_operation(self):
-        """Explain that saving password entries begins in Milestone 3."""
-        from tkinter import messagebox
+        ):
+            messagebox.showerror(
+                "Missing Information",
+                "Please enter a description, username, and password before updating.",
+                parent=self,
+            )
+            return
 
         messagebox.showinfo(
             "Milestone 2",

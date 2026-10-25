@@ -14,15 +14,20 @@ class LoginGUI(tk.Toplevel):
         self.title("Login")
         self.resizable(False, False)
         self.transient(parent)
+        self.columnconfigure(0, weight=1)
+        self.rowconfigure(0, weight=1)
         self.on_success = on_success
         self._build_interface()
-        self.bind("<Return>", lambda event: self.login())
+        self.bind("<Return>", self._handle_return)
         self._center_over_parent(parent)
+        self.wait_visibility()
+        self.lift()
         self.grab_set()
+        self.username_entry.focus_set()
 
     def _build_interface(self):
         frame = ttk.Frame(self, padding=20)
-        frame.grid(sticky="nsew")
+        frame.grid(row=0, column=0, sticky="nsew")
 
         ttk.Label(frame, text="Login", font=("Arial", 15, "bold")).grid(
             column=0, row=0, columnspan=2, pady=(0, 12)
@@ -39,7 +44,7 @@ class LoginGUI(tk.Toplevel):
             column=0, row=2, sticky="e", padx=(0, 8), pady=5
         )
         self.username_entry = ttk.Entry(
-            frame, textvariable=self.username, justify="right", width=30
+            frame, textvariable=self.username, justify="left", width=30
         )
         self.username_entry.grid(
             column=1, row=2, pady=5
@@ -48,7 +53,7 @@ class LoginGUI(tk.Toplevel):
             column=0, row=3, sticky="e", padx=(0, 8), pady=5
         )
         self.password_entry = ttk.Entry(
-            frame, textvariable=self.password, show="*", justify="right", width=30
+            frame, textvariable=self.password, show="*", justify="left", width=30
         )
         self.password_entry.grid(column=1, row=3, pady=5)
         buttons = ttk.Frame(frame)
@@ -56,7 +61,11 @@ class LoginGUI(tk.Toplevel):
         self.login_button = ttk.Button(buttons, text="Login", command=self.login)
         self.login_button.grid(column=0, row=0, padx=(0, 8))
         ttk.Button(buttons, text="Cancel", command=self.destroy).grid(column=1, row=0)
-        self.username_entry.focus_set()
+
+    def _handle_return(self, event):
+        """Submit when Enter is pressed in either credential field."""
+        if event.widget in (self.username_entry, self.password_entry):
+            self.login()
 
     def login(self):
         """Verify saved credentials and clear invalid password input."""

@@ -7,6 +7,10 @@ venv/
 # macOS metadata
 .DS_Store
 
+# Local VS Code workspace settings
+/.vscode/settings.json
+/.vscode/launch.json
+
 # Local account data
 /data/accounts.json
 /data/accounts.tmp

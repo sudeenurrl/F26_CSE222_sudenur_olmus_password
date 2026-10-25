@@ -4,8 +4,9 @@ from gui.main_window import MainWindow
 
 
 def main():
-    """Create and start the opening Password Manager window."""
+    """Open the login dialog and start the Password Manager event loop."""
     app = MainWindow()
+    app.after_idle(app.open_login)
     app.mainloop()
 
 

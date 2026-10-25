@@ -14,6 +14,26 @@ python3 main.py
 The application uses only the Python standard library. If importing `tkinter`
 fails, use a Python installation that includes Tk support.
 
+### Run in VS Code
+
+Open this project folder in VS Code, select **Run and Debug**, and choose
+**Run Password Manager**. The configuration launches `main.py` with the project
+folder as its working directory, so no manual `PYTHONPATH` setting is needed.
+The login dialog opens first. Select **Cancel** to return to the opening screen,
+where you can create an account or open the login dialog again.
+
+Run the command above in a shell terminal. If the prompt begins with `>>>`, the
+terminal is in the Python interpreter; enter `exit()` before running shell
+commands.
+
+### macOS Tk compatibility
+
+This workspace is configured to use `/usr/local/bin/python3` (Python 3.15.1,
+Tcl/Tk 9.0.4). If that interpreter is installed elsewhere, update
+`python.defaultInterpreterPath` in `.vscode/settings.json` and the `python`
+entries in `.vscode/launch.json` and the Code Runner settings. No system
+Python installation is changed by the project.
+
 ## Test
 
 ```sh

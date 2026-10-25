@@ -116,14 +116,17 @@ class MainWindow(tk.Tk):
         from tkinter import messagebox
 
         if not all(
+            # strip() removes surrounding whitespace so spaces alone count as empty.
             value.get().strip()
             for value in (self.description, self.entry_username, self.entry_password)
         ):
+            # showerror opens a Tkinter error popup for missing form information.
             messagebox.showerror(
                 "Missing Information",
                 "Please enter a description, username, and password before updating.",
                 parent=self,
             )
+            # Stop here so the success message or any later update work cannot run.
             return
 
         messagebox.showinfo(

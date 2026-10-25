@@ -103,9 +103,13 @@ class MainWindow(tk.Tk):
             command=self._search_password_entry,
             state="normal",
         ).grid(column=1, row=0, padx=8)
-        ttk.Button(controls, text="Display All", state="disabled").grid(
-            column=2, row=0, padx=8
-        )
+        # Display All is enabled after login and opens a separate list window.
+        ttk.Button(
+            controls,
+            text="Display All",
+            command=self._display_all_password_entries,
+            state="normal",
+        ).grid(column=2, row=0, padx=8)
         ttk.Button(controls, text="Log Out", command=self.show_start_screen).grid(
             column=3, row=0, padx=8
         )
@@ -197,6 +201,61 @@ class MainWindow(tk.Tk):
         # The existing password field stays masked because its Entry widget uses show="*".
         self.entry_username.set(entry.username)
         self.entry_password.set(entry.password)
+
+    def _display_all_password_entries(self):
+        """Show every saved entry in a separate, alphabetically sorted window."""
+        try:
+            # Loading storage reads current entries from disk without changing the file.
+            entries = PasswordEntryStorage().entries
+        except PasswordEntryStorageError as error:
+            messagebox.showerror("Storage Error", str(error), parent=self)
+            return
+
+        if not entries:
+            messagebox.showinfo(
+                "No Saved Entries",
+                "There are no saved password entries to display.",
+                parent=self,
+            )
+            return
+
+        list_window = tk.Toplevel(self)
+        list_window.title("Saved Password Entries")
+        list_window.geometry("620x320")
+        list_frame = ttk.Frame(list_window, padding=12)
+        list_frame.pack(expand=True, fill="both")
+
+        columns = ("description", "username", "password")
+        entry_table = ttk.Treeview(
+            list_frame, columns=columns, show="headings"
+        )
+        for column, heading in (
+            ("description", "Description"),
+            ("username", "Username"),
+            ("password", "Password"),
+        ):
+            entry_table.heading(column, text=heading)
+            entry_table.column(column, anchor="w", width=180)
+
+        scrollbar = ttk.Scrollbar(
+            list_frame, orient="vertical", command=entry_table.yview
+        )
+        entry_table.configure(yscrollcommand=scrollbar.set)
+        entry_table.grid(row=0, column=0, sticky="nsew")
+        scrollbar.grid(row=0, column=1, sticky="ns")
+        list_frame.rowconfigure(0, weight=1)
+        list_frame.columnconfigure(0, weight=1)
+
+        # Sort without regard to capitalization and use a fixed mask instead of passwords.
+        sorted_entries = sorted(
+            entries, key=lambda saved_entry: saved_entry.description.casefold()
+        )
+        for entry in sorted_entries:
+            entry_table.insert(
+                "",
+                "end",
+                values=(entry.description, entry.username, "********"),
+            )
 
     def _center_window(self):
         """Center the first window on the desktop."""

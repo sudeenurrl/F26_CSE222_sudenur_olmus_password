@@ -21,6 +21,7 @@ class MainWindowPasswordEntryTests(unittest.TestCase):
             _add_main_entry=Mock(),
             _save_password_entry=Mock(),
             _search_password_entry=Mock(),
+            _display_all_password_entries=Mock(),
             show_start_screen=Mock(),
         )
         created_buttons = []
@@ -45,7 +46,11 @@ class MainWindowPasswordEntryTests(unittest.TestCase):
         self.assertIs(
             buttons_by_text["Update"]["command"], window._save_password_entry
         )
-        self.assertEqual(buttons_by_text["Display All"]["state"], "disabled")
+        self.assertEqual(buttons_by_text["Display All"]["state"], "normal")
+        self.assertIs(
+            buttons_by_text["Display All"]["command"],
+            window._display_all_password_entries,
+        )
 
     def make_window(self, description="Email", username="fake-user",
                     password="fake-password"):
@@ -202,6 +207,78 @@ class MainWindowPasswordEntryTests(unittest.TestCase):
         window.entry_username.set.assert_not_called()
         window.entry_password.set.assert_not_called()
         info.assert_not_called()
+
+    def test_display_all_sorts_descriptions_and_masks_passwords(self):
+        window = SimpleNamespace()
+        entries = [
+            PasswordEntry("zeta", "fake-zeta-user", "secret-zeta"),
+            PasswordEntry("Beta", "fake-beta-user", "secret-beta"),
+            PasswordEntry("alpha", "fake-alpha-user", "secret-alpha"),
+        ]
+        tree = Mock()
+
+        with patch(
+            "gui.main_window.PasswordEntryStorage",
+            return_value=SimpleNamespace(entries=entries),
+        ), patch("gui.main_window.tk.Toplevel", return_value=Mock()), patch(
+            "gui.main_window.ttk.Frame", return_value=Mock()
+        ), patch("gui.main_window.ttk.Treeview", return_value=tree), patch(
+            "gui.main_window.ttk.Scrollbar", return_value=Mock()
+        ):
+            MainWindow._display_all_password_entries(window)
+
+        displayed_values = [
+            call.kwargs["values"] for call in tree.insert.call_args_list
+        ]
+        self.assertEqual(
+            displayed_values,
+            [
+                ("alpha", "fake-alpha-user", "********"),
+                ("Beta", "fake-beta-user", "********"),
+                ("zeta", "fake-zeta-user", "********"),
+            ],
+        )
+        self.assertNotIn("secret-alpha", repr(displayed_values))
+        self.assertNotIn("secret-beta", repr(displayed_values))
+        self.assertNotIn("secret-zeta", repr(displayed_values))
+
+    def test_display_all_shows_message_when_storage_is_empty(self):
+        window = SimpleNamespace()
+
+        with patch(
+            "gui.main_window.PasswordEntryStorage",
+            return_value=SimpleNamespace(entries=[]),
+        ), patch("gui.main_window.messagebox.showinfo") as info, patch(
+            "gui.main_window.tk.Toplevel"
+        ) as list_window:
+            MainWindow._display_all_password_entries(window)
+
+        info.assert_called_once_with(
+            "No Saved Entries",
+            "There are no saved password entries to display.",
+            parent=window,
+        )
+        list_window.assert_not_called()
+
+    def test_display_all_reports_storage_errors(self):
+        window = SimpleNamespace()
+
+        with patch(
+            "gui.main_window.PasswordEntryStorage",
+            side_effect=PasswordEntryStorageError(
+                "Saved password entries could not be read."
+            ),
+        ), patch("gui.main_window.messagebox.showerror") as error, patch(
+            "gui.main_window.tk.Toplevel"
+        ) as list_window:
+            MainWindow._display_all_password_entries(window)
+
+        error.assert_called_once_with(
+            "Storage Error",
+            "Saved password entries could not be read.",
+            parent=window,
+        )
+        list_window.assert_not_called()
 
 
 if __name__ == "__main__":

@@ -1,11 +1,14 @@
 """Tests for saving password entries from the main-window callback."""
 
+import tempfile
 import unittest
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
 from application.password_entry_service import (
     PasswordEntry,
+    PasswordEntryStorage,
     PasswordEntryStorageError,
 )
 from gui.main_window import MainWindow
@@ -99,6 +102,33 @@ class MainWindowPasswordEntryTests(unittest.TestCase):
         error.assert_called_once()
         self.assertEqual(error.call_args.args[0], "Missing Information")
         success.assert_not_called()
+
+    def test_each_empty_update_field_is_rejected(self):
+        for field_name in ("description", "entry_username", "entry_password"):
+            with self.subTest(field=field_name):
+                values = {
+                    "description": "Email",
+                    "username": "fake-user",
+                    "password": "fake-password",
+                }
+                values[
+                    {
+                        "description": "description",
+                        "entry_username": "username",
+                        "entry_password": "password",
+                    }[field_name]
+                ] = "   "
+                window = self.make_window(**values)
+
+                with patch("gui.main_window.PasswordEntryStorage") as storage_class, patch(
+                    "gui.main_window.messagebox.showerror"
+                ) as error, patch("gui.main_window.messagebox.showinfo") as success:
+                    MainWindow._save_password_entry(window)
+
+                storage_class.assert_not_called()
+                error.assert_called_once()
+                self.assertEqual(error.call_args.args[0], "Missing Information")
+                success.assert_not_called()
 
     def test_duplicate_description_is_rejected_case_insensitively(self):
         window = self.make_window(description=" email ")
@@ -279,6 +309,114 @@ class MainWindowPasswordEntryTests(unittest.TestCase):
             parent=window,
         )
         list_window.assert_not_called()
+
+    def test_multiple_entries_survive_restart_search_and_display_alphabetically(self):
+        entries_to_save = [
+            ("zeta", "fake-zeta-user", "fake-zeta-secret"),
+            ("Beta", "fake-beta-user", "fake-beta-secret"),
+            ("alpha", "fake-alpha-user", "fake-alpha-secret"),
+        ]
+
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            entries_file = Path(temporary_directory) / "entries.json"
+
+            # Every GUI action gets a new service instance, as it would in the app.
+            def create_storage():
+                return PasswordEntryStorage(entries_file)
+
+            with patch(
+                "gui.main_window.PasswordEntryStorage", side_effect=create_storage
+            ), patch("gui.main_window.messagebox.showinfo") as success:
+                for description, username, password in entries_to_save:
+                    window = self.make_window(description, username, password)
+                    MainWindow._save_password_entry(window)
+
+            self.assertEqual(success.call_count, len(entries_to_save))
+            saved_file_contents = entries_file.read_bytes()
+
+            duplicate_window = self.make_window(
+                description=" BETA ",
+                username="different-fake-user",
+                password="different-fake-secret",
+            )
+            with patch(
+                "gui.main_window.PasswordEntryStorage", side_effect=create_storage
+            ), patch("gui.main_window.messagebox.showerror") as error, patch(
+                "gui.main_window.messagebox.showinfo"
+            ) as duplicate_success:
+                MainWindow._save_password_entry(duplicate_window)
+
+            self.assertEqual(error.call_args.args[0], "Duplicate Description")
+            duplicate_success.assert_not_called()
+            self.assertEqual(entries_file.read_bytes(), saved_file_contents)
+
+            # A fresh instance confirms the saved entries remain after a restart.
+            restarted_storage = PasswordEntryStorage(entries_file)
+            self.assertEqual(
+                [entry.description for entry in restarted_storage.entries],
+                ["zeta", "Beta", "alpha"],
+            )
+
+            search_window = self.make_window(description=" beta ")
+            with patch(
+                "gui.main_window.PasswordEntryStorage", side_effect=create_storage
+            ), patch("gui.main_window.messagebox.showerror") as error:
+                MainWindow._search_password_entry(search_window)
+
+            search_window.entry_username.set.assert_called_once_with("fake-beta-user")
+            search_window.entry_password.set.assert_called_once_with("fake-beta-secret")
+            error.assert_not_called()
+
+            tree = Mock()
+            with patch(
+                "gui.main_window.PasswordEntryStorage", side_effect=create_storage
+            ), patch("gui.main_window.tk.Toplevel", return_value=Mock()), patch(
+                "gui.main_window.ttk.Frame", return_value=Mock()
+            ), patch("gui.main_window.ttk.Treeview", return_value=tree), patch(
+                "gui.main_window.ttk.Scrollbar", return_value=Mock()
+            ):
+                MainWindow._display_all_password_entries(SimpleNamespace())
+
+            displayed_values = [
+                call.kwargs["values"] for call in tree.insert.call_args_list
+            ]
+            self.assertEqual(
+                displayed_values,
+                [
+                    ("alpha", "fake-alpha-user", "********"),
+                    ("Beta", "fake-beta-user", "********"),
+                    ("zeta", "fake-zeta-user", "********"),
+                ],
+            )
+            self.assertNotIn("fake-alpha-secret", repr(displayed_values))
+            self.assertNotIn("fake-beta-secret", repr(displayed_values))
+            self.assertNotIn("fake-zeta-secret", repr(displayed_values))
+            self.assertEqual(entries_file.read_bytes(), saved_file_contents)
+
+    def test_corrupted_storage_is_reported_by_search_and_display_all(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            entries_file = Path(temporary_directory) / "entries.json"
+            corrupted_contents = b"{"
+            entries_file.write_bytes(corrupted_contents)
+
+            def create_storage():
+                return PasswordEntryStorage(entries_file)
+
+            window = self.make_window()
+            with patch(
+                "gui.main_window.PasswordEntryStorage", side_effect=create_storage
+            ), patch("gui.main_window.messagebox.showerror") as error, patch(
+                "gui.main_window.tk.Toplevel"
+            ) as list_window:
+                MainWindow._search_password_entry(window)
+                MainWindow._display_all_password_entries(window)
+
+            self.assertEqual(error.call_count, 2)
+            self.assertTrue(
+                all(call.args[0] == "Storage Error" for call in error.call_args_list)
+            )
+            list_window.assert_not_called()
+            self.assertEqual(entries_file.read_bytes(), corrupted_contents)
 
 
 if __name__ == "__main__":

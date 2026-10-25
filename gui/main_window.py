@@ -1,8 +1,13 @@
-"""Opening and post-login interfaces for Password Manager Milestone 2."""
+"""Opening and post-login interfaces for Password Manager Milestone 3."""
 
 import tkinter as tk
-from tkinter import ttk
+from tkinter import messagebox, ttk
 
+from application.password_entry_service import (
+    PasswordEntry,
+    PasswordEntryStorage,
+    PasswordEntryStorageError,
+)
 from gui.account_gui import AccountGUI
 from gui.login_gui import LoginGUI
 
@@ -12,7 +17,7 @@ class MainWindow(tk.Tk):
 
     def __init__(self):
         super().__init__()
-        self.title("Password Manager - Milestone 2")
+        self.title("Password Manager - Milestone 3")
         self.geometry("520x330")
         self.resizable(False, False)
         self._center_window()
@@ -88,7 +93,7 @@ class MainWindow(tk.Tk):
         controls = ttk.Frame(frame)
         controls.grid(column=0, row=6, columnspan=3, sticky="w", pady=(18, 0))
         self.update_button = ttk.Button(
-            controls, text="Update", command=self._show_future_operation
+            controls, text="Update", command=self._save_password_entry
         )
         self.update_button.grid(column=0, row=0, padx=(0, 8))
         ttk.Button(controls, text="Search", state="disabled").grid(
@@ -111,27 +116,48 @@ class MainWindow(tk.Tk):
             frame, textvariable=variable, show=show, justify="left", width=42
         ).grid(column=1, row=row, columnspan=2, sticky="ew", pady=6)
 
-    def _show_future_operation(self):
-        """Validate the password-entry form without saving it."""
-        from tkinter import messagebox
+    def _save_password_entry(self):
+        """Validate the form and save a new password entry."""
+        description = self.description.get()
+        username = self.entry_username.get()
+        password = self.entry_password.get()
 
-        if not all(
-            # strip() removes surrounding whitespace so spaces alone count as empty.
-            value.get().strip()
-            for value in (self.description, self.entry_username, self.entry_password)
-        ):
-            # showerror opens a Tkinter error popup for missing form information.
+        # Whitespace-only values are not useful credentials, so reject them up front.
+        if not all(value.strip() for value in (description, username, password)):
             messagebox.showerror(
                 "Missing Information",
                 "Please enter a description, username, and password before updating.",
                 parent=self,
             )
-            # Stop here so the success message or any later update work cannot run.
             return
 
+        try:
+            # Reload saved entries so duplicate checks include earlier saves.
+            storage = PasswordEntryStorage()
+            description_key = description.strip().casefold()
+            if any(
+                entry.description.strip().casefold() == description_key
+                for entry in storage.entries
+            ):
+                messagebox.showerror(
+                    "Duplicate Description",
+                    "An entry with this description already exists. Please choose a unique description.",
+                    parent=self,
+                )
+                return
+
+            # Save the existing entries together with the new one to keep prior data.
+            storage.save_entries(
+                storage.entries + [PasswordEntry(description, username, password)]
+            )
+        except PasswordEntryStorageError as error:
+            messagebox.showerror("Storage Error", str(error), parent=self)
+            return
+
+        # Report success only after the storage service confirms the save completed.
         messagebox.showinfo(
-            "Milestone 2",
-            "Password-entry storage, Search, and Display All are implemented in later milestones.",
+            "Password Saved",
+            "The password entry was saved successfully.",
             parent=self,
         )
 

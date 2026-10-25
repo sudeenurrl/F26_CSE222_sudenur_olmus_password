@@ -1,7 +1,8 @@
-# CSE222 Password Manager — Milestone 2
+# CSE222 Password Manager — Milestone 3
 
 A Python desktop application built with Tkinter. It supports account creation,
-password validation, and login with persistent local accounts.
+password validation, login with persistent local accounts, and saving password
+entries with unique descriptions.
 
 ## Run
 
@@ -51,22 +52,23 @@ they do not open windows or change your saved accounts.
 - Store salted PBKDF2-SHA256 password hashes in `data/accounts.json`.
 - Validate saved records and report unreadable or malformed account data.
 - Write accounts through a temporary file so failed saves preserve existing data.
+- Save password entries with unique descriptions in `data/password_entries.json`.
 - Log in and log out; account dialogs are modal.
 
-The post-login form is preparation for later milestones. Update displays an
-informational message; Search and Display All are disabled. Password-entry
-storage and retrieval are not implemented in Milestone 2.
+After login, Update saves the description, username, and password entered in the
+form. Search and Display All remain disabled for a later milestone.
 
 ## Project structure
 
 ```text
 main.py                         Application entry point
 application/account_service.py  Account validation, hashing, and persistence
+application/password_entry_service.py  Password-entry validation and persistence
 gui/main_window.py              Opening and post-login screens
 gui/account_gui.py              Account creation dialog
 gui/login_gui.py                Login dialog
 data/                           Local account storage
-tests/                          Service and login callback tests
+tests/                          Service and GUI callback tests
 ```
 
 Local account files, Python caches, virtual environments, and macOS metadata

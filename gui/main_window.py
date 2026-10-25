@@ -96,9 +96,13 @@ class MainWindow(tk.Tk):
             controls, text="Update", command=self._save_password_entry
         )
         self.update_button.grid(column=0, row=0, padx=(0, 8))
-        ttk.Button(controls, text="Search", state="disabled").grid(
-            column=1, row=0, padx=8
-        )
+        # The main screen appears after login, so Search is ready to use here.
+        ttk.Button(
+            controls,
+            text="Search",
+            command=self._search_password_entry,
+            state="normal",
+        ).grid(column=1, row=0, padx=8)
         ttk.Button(controls, text="Display All", state="disabled").grid(
             column=2, row=0, padx=8
         )
@@ -160,6 +164,39 @@ class MainWindow(tk.Tk):
             "The password entry was saved successfully.",
             parent=self,
         )
+
+    def _search_password_entry(self):
+        """Find credentials by description and put them into the existing fields."""
+        description = self.description.get()
+
+        # A description is required because it tells the app which entry to find.
+        if not description.strip():
+            messagebox.showerror(
+                "Missing Description",
+                "Please enter a description before searching.",
+                parent=self,
+            )
+            return
+
+        try:
+            # Opening storage reloads saved entries, including entries from earlier runs.
+            storage = PasswordEntryStorage()
+            entry = storage.find_entry(description)
+        except PasswordEntryStorageError as error:
+            messagebox.showerror("Storage Error", str(error), parent=self)
+            return
+
+        if entry is None:
+            messagebox.showinfo(
+                "Entry Not Found",
+                "No saved entry matches that description.",
+                parent=self,
+            )
+            return
+
+        # The existing password field stays masked because its Entry widget uses show="*".
+        self.entry_username.set(entry.username)
+        self.entry_password.set(entry.password)
 
     def _center_window(self):
         """Center the first window on the desktop."""

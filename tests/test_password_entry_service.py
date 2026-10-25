@@ -44,6 +44,20 @@ class PasswordEntryStorageTests(unittest.TestCase):
 
         self.assertEqual(storage.entries, [])
 
+    def test_find_entry_ignores_description_case_and_extra_spaces(self):
+        storage = PasswordEntryStorage(self.entries_file)
+        saved_entry = PasswordEntry("Email", "fake-user", "fake-password")
+        storage.save_entries([saved_entry])
+
+        found_entry = PasswordEntryStorage(self.entries_file).find_entry(" email ")
+
+        self.assertEqual(found_entry, saved_entry)
+
+    def test_find_entry_returns_none_when_description_is_not_saved(self):
+        storage = PasswordEntryStorage(self.entries_file)
+
+        self.assertIsNone(storage.find_entry("Missing"))
+
     def test_malformed_json_is_reported_without_overwriting_file(self):
         original_data = b"{"
         self.entries_file.write_bytes(original_data)

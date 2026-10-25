@@ -47,6 +47,15 @@ class PasswordEntryStorage:
         self.entries = self._validate_entries(saved_entries)
         return self.entries
 
+    def find_entry(self, description: str) -> PasswordEntry | None:
+        """Find a saved entry by description, ignoring case and extra spaces."""
+        description_key = description.strip().casefold()
+        for entry in self.entries:
+            # Match descriptions the same way saving checks uniqueness.
+            if entry.description.strip().casefold() == description_key:
+                return entry
+        return None
+
     def save_entries(self, entries: list[PasswordEntry] | None = None) -> None:
         """Save entries as JSON so they are retained across application restarts."""
         entries_to_save = self.entries if entries is None else entries

@@ -53,10 +53,12 @@ they do not open windows or change your saved accounts.
 - Validate saved records and report unreadable or malformed account data.
 - Write accounts through a temporary file so failed saves preserve existing data.
 - Save password entries with unique descriptions in `data/password_entries.json`.
+- Search for a saved entry by description and fill its username and masked password into the form.
 - Log in and log out; account dialogs are modal.
 
 After login, Update saves the description, username, and password entered in the
-form. Search and Display All remain disabled for a later milestone.
+form. Search loads a matching saved username and password; Display All remains
+disabled for a later milestone.
 
 ## Project structure
 

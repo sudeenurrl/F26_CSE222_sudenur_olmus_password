@@ -452,6 +452,50 @@ class MainWindowPasswordEntryTests(unittest.TestCase):
         )
         list_window.assert_not_called()
 
+    def test_display_all_reports_unreadable_or_invalid_storage(self):
+        cases = (
+            (
+                "unreadable",
+                lambda path: path.mkdir(),
+                "Saved password entries could not be read.",
+            ),
+            (
+                "invalid-encoding",
+                lambda path: path.write_bytes(b"\xff"),
+                "Saved password entries could not be read.",
+            ),
+            (
+                "invalid-structure",
+                lambda path: path.write_text("{}", encoding="utf-8"),
+                "Saved password entries have an invalid format.",
+            ),
+        )
+
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            for name, create_file, expected_message in cases:
+                with self.subTest(case=name):
+                    entries_file = Path(temporary_directory) / f"{name}.json"
+                    create_file(entries_file)
+
+                    def create_storage(file_path=entries_file):
+                        return PasswordEntryStorage(file_path)
+
+                    window = self.make_window()
+                    with patch(
+                        "gui.main_window.PasswordEntryStorage",
+                        side_effect=create_storage,
+                    ), patch("gui.main_window.messagebox.showerror") as error, patch(
+                        "gui.main_window.tk.Toplevel"
+                    ) as list_window:
+                        MainWindow._display_all_password_entries(window)
+
+                    error.assert_called_once_with(
+                        "Storage Error",
+                        expected_message,
+                        parent=window,
+                    )
+                    list_window.assert_not_called()
+
     def test_multiple_entries_survive_restart_search_and_display_alphabetically(self):
         entries_to_save = [
             ("zeta", "fake-zeta-user", "fake-zeta-secret"),

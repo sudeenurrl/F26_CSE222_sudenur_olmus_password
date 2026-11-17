@@ -414,6 +414,74 @@ class MainWindowPasswordEntryTests(unittest.TestCase):
         self.assertTrue(all(values[2] == "********" for values in displayed_values))
         self.assertNotIn("fake-password-", repr(displayed_values))
 
+    def test_display_all_click_reuses_the_existing_window(self):
+        window = self.make_window()
+        list_window = Mock()
+        list_window.winfo_exists.return_value = True
+        tree = Mock()
+        tree.get_children.side_effect = [(), ("previous-row",)]
+        entries = [
+            PasswordEntry("zeta", "fake-zeta-user", "secret-zeta"),
+            PasswordEntry("alpha", "fake-alpha-user", "secret-alpha"),
+        ]
+
+        with patch(
+            "gui.main_window.PasswordEntryStorage",
+            return_value=SimpleNamespace(entries=entries),
+        ), patch("gui.main_window.tk.Toplevel", return_value=list_window) as toplevel, patch(
+            "gui.main_window.ttk.Frame", return_value=Mock()
+        ), patch("gui.main_window.ttk.Treeview", return_value=tree) as treeview, patch(
+            "gui.main_window.ttk.Scrollbar", return_value=Mock()
+        ):
+            MainWindow._display_all_password_entries(window)
+            MainWindow._display_all_password_entries(window)
+
+        toplevel.assert_called_once_with(window)
+        treeview.assert_called_once()
+        self.assertIs(window._display_all_window, list_window)
+        self.assertIs(window._display_all_table, tree)
+        self.assertEqual(tree.delete.call_args_list[0].args, ())
+        self.assertEqual(tree.delete.call_args_list[1].args, ("previous-row",))
+        self.assertEqual(tree.insert.call_count, len(entries) * 2)
+        list_window.lift.assert_called_once_with()
+
+    def test_display_all_reopens_after_the_previous_window_is_closed(self):
+        window = self.make_window()
+        first_window = Mock()
+        first_window.winfo_exists.return_value = True
+        second_window = Mock()
+        first_tree = Mock()
+        first_tree.get_children.return_value = ()
+        second_tree = Mock()
+        second_tree.get_children.return_value = ()
+        entries = [PasswordEntry("Email", "fake-user", "secret-password")]
+
+        with patch(
+            "gui.main_window.PasswordEntryStorage",
+            return_value=SimpleNamespace(entries=entries),
+        ), patch(
+            "gui.main_window.tk.Toplevel",
+            side_effect=(first_window, second_window),
+        ) as toplevel, patch(
+            "gui.main_window.ttk.Frame", side_effect=(Mock(), Mock())
+        ), patch(
+            "gui.main_window.ttk.Treeview", side_effect=(first_tree, second_tree)
+        ) as treeview, patch(
+            "gui.main_window.ttk.Scrollbar", side_effect=(Mock(), Mock())
+        ):
+            MainWindow._display_all_password_entries(window)
+            first_window.winfo_exists.return_value = False
+            MainWindow._display_all_password_entries(window)
+
+        self.assertEqual(toplevel.call_count, 2)
+        self.assertEqual(treeview.call_count, 2)
+        self.assertIs(window._display_all_window, second_window)
+        self.assertIs(window._display_all_table, second_tree)
+        self.assertEqual(first_tree.get_children.call_count, 1)
+        self.assertEqual(first_tree.delete.call_count, 1)
+        self.assertEqual(first_tree.insert.call_count, 1)
+        self.assertEqual(second_tree.insert.call_count, 1)
+
     def test_display_all_shows_message_when_storage_is_empty(self):
         window = SimpleNamespace()
 

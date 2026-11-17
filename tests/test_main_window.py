@@ -356,6 +356,64 @@ class MainWindowPasswordEntryTests(unittest.TestCase):
         self.assertNotIn("secret-beta", repr(displayed_values))
         self.assertNotIn("secret-zeta", repr(displayed_values))
 
+    def test_display_all_scrollbar_is_wired_for_many_entries(self):
+        window = self.make_window()
+        entries = [
+            PasswordEntry(
+                f"service-{index:02d}",
+                f"fake-user-{index:02d}",
+                f"fake-password-{index:02d}",
+            )
+            for index in range(59, -1, -1)
+        ]
+        list_frame = Mock()
+        tree = Mock()
+        tree.get_children.return_value = ()
+        scrollbar = Mock()
+
+        with patch(
+            "gui.main_window.PasswordEntryStorage",
+            return_value=SimpleNamespace(entries=entries),
+        ), patch("gui.main_window.tk.Toplevel", return_value=Mock()), patch(
+            "gui.main_window.ttk.Frame", return_value=list_frame
+        ), patch("gui.main_window.ttk.Treeview", return_value=tree) as treeview, patch(
+            "gui.main_window.ttk.Scrollbar", return_value=scrollbar
+        ) as scrollbar_factory:
+            MainWindow._display_all_password_entries(window)
+
+        treeview.assert_called_once_with(
+            list_frame,
+            columns=("description", "username", "password"),
+            show="headings",
+        )
+        self.assertEqual(
+            [(call.args, call.kwargs) for call in tree.heading.call_args_list],
+            [
+                (("description",), {"text": "Description"}),
+                (("username",), {"text": "Username"}),
+                (("password",), {"text": "Password"}),
+            ],
+        )
+        scrollbar_factory.assert_called_once_with(
+            list_frame, orient="vertical", command=tree.yview
+        )
+        tree.configure.assert_called_once_with(yscrollcommand=scrollbar.set)
+        tree.grid.assert_called_once_with(row=0, column=0, sticky="nsew")
+        scrollbar.grid.assert_called_once_with(row=0, column=1, sticky="ns")
+        list_frame.rowconfigure.assert_called_once_with(0, weight=1)
+        list_frame.columnconfigure.assert_called_once_with(0, weight=1)
+
+        displayed_values = [
+            call.kwargs["values"] for call in tree.insert.call_args_list
+        ]
+        self.assertEqual(len(displayed_values), 60)
+        self.assertEqual(
+            [values[0] for values in displayed_values],
+            [f"service-{index:02d}" for index in range(60)],
+        )
+        self.assertTrue(all(values[2] == "********" for values in displayed_values))
+        self.assertNotIn("fake-password-", repr(displayed_values))
+
     def test_display_all_shows_message_when_storage_is_empty(self):
         window = SimpleNamespace()
 

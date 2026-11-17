@@ -20,6 +20,8 @@ class MainWindow(tk.Tk):
         self.title("Password Manager - Milestone 3")
         self.geometry("520x330")
         self.resizable(False, False)
+        self._display_all_window = None
+        self._display_all_table = None
         self._center_window()
         self.show_start_screen()
 
@@ -86,6 +88,7 @@ class MainWindow(tk.Tk):
         self.description = tk.StringVar()
         self.entry_username = tk.StringVar()
         self.entry_password = tk.StringVar()
+        # Asterisks hide the password while it is typed or loaded by Search.
         self._add_main_entry(frame, "Description:", self.description, 3)
         self._add_main_entry(frame, "Username:", self.entry_username, 4)
         self._add_main_entry(frame, "Password:", self.entry_password, 5, show="*")
@@ -124,6 +127,9 @@ class MainWindow(tk.Tk):
             frame, textvariable=variable, show=show, justify="left", width=42
         ).grid(column=1, row=row, columnspan=2, sticky="ew", pady=6)
 
+    # Note: This function handles Update and saves a new password entry.
+    # It rejects blank fields and duplicate descriptions before adding the entry to the saved list.
+    # Clear checks protect the user's data, and the success message appears only after saving works.
     def _save_password_entry(self):
         """Validate the form and save a new password entry."""
         description = self.description.get()
@@ -142,6 +148,7 @@ class MainWindow(tk.Tk):
         try:
             # Reload saved entries so duplicate checks include earlier saves.
             storage = PasswordEntryStorage()
+            # Case-folding and trimming treat spacing or capitalization as the same name.
             description_key = description.strip().casefold()
             if any(
                 entry.description.strip().casefold() == description_key
@@ -155,12 +162,16 @@ class MainWindow(tk.Tk):
                 return
 
             # Save the existing entries together with the new one to keep prior data.
-            storage.save_entries(
-                storage.entries + [PasswordEntry(description, username, password)]
-            )
+            entries_to_save = storage.entries + [
+                PasswordEntry(description, username, password)
+            ]
+            storage.save_entries(entries_to_save)
         except PasswordEntryStorageError as error:
+            # Show storage problems in the GUI instead of letting the callback crash.
             messagebox.showerror("Storage Error", str(error), parent=self)
             return
+
+        self._refresh_open_display_all_window(entries_to_save)
 
         # Report success only after the storage service confirms the save completed.
         messagebox.showinfo(
@@ -169,6 +180,22 @@ class MainWindow(tk.Tk):
             parent=self,
         )
 
+    def _refresh_open_display_all_window(self, entries):
+        """Refresh the saved-entry table if its window is still open."""
+        list_window = getattr(self, "_display_all_window", None)
+        entry_table = getattr(self, "_display_all_table", None)
+        if list_window is None or entry_table is None:
+            return
+        if not list_window.winfo_exists():
+            self._display_all_window = None
+            self._display_all_table = None
+            return
+
+        self._populate_display_all_table(entry_table, entries)
+
+    # PRESENTATION NOTE: This function searches for an entry using its description.
+    # It loads the saved entries, finds a matching description, and fills in the username and password fields.
+    # It reports blank searches, missing entries, and storage problems without crashing the application.
     def _search_password_entry(self):
         """Find credentials by description and put them into the existing fields."""
         description = self.description.get()
@@ -187,6 +214,7 @@ class MainWindow(tk.Tk):
             storage = PasswordEntryStorage()
             entry = storage.find_entry(description)
         except PasswordEntryStorageError as error:
+            # A damaged or unreadable file should produce a clear message, not a crash.
             messagebox.showerror("Storage Error", str(error), parent=self)
             return
 
@@ -202,12 +230,16 @@ class MainWindow(tk.Tk):
         self.entry_username.set(entry.username)
         self.entry_password.set(entry.password)
 
+    # PRESENTATION NOTE: This function shows every saved entry in a separate window.
+    # It sorts descriptions alphabetically and displays the description and username with a masked password.
+    # Masking prevents the saved password from appearing as readable text in this list.
     def _display_all_password_entries(self):
         """Show every saved entry in a separate, alphabetically sorted window."""
         try:
             # Loading storage reads current entries from disk without changing the file.
             entries = PasswordEntryStorage().entries
         except PasswordEntryStorageError as error:
+            # Report read failures before creating a window with incomplete information.
             messagebox.showerror("Storage Error", str(error), parent=self)
             return
 
@@ -219,7 +251,18 @@ class MainWindow(tk.Tk):
             )
             return
 
+        list_window = getattr(self, "_display_all_window", None)
+        entry_table = getattr(self, "_display_all_table", None)
+        if list_window is not None and entry_table is not None:
+            if list_window.winfo_exists():
+                self._populate_display_all_table(entry_table, entries)
+                list_window.lift()
+                return
+            self._display_all_window = None
+            self._display_all_table = None
+
         list_window = tk.Toplevel(self)
+        self._display_all_window = list_window
         list_window.title("Saved Password Entries")
         list_window.geometry("620x320")
         list_frame = ttk.Frame(list_window, padding=12)
@@ -229,6 +272,7 @@ class MainWindow(tk.Tk):
         entry_table = ttk.Treeview(
             list_frame, columns=columns, show="headings"
         )
+        self._display_all_table = entry_table
         for column, heading in (
             ("description", "Description"),
             ("username", "Username"),
@@ -246,7 +290,13 @@ class MainWindow(tk.Tk):
         list_frame.rowconfigure(0, weight=1)
         list_frame.columnconfigure(0, weight=1)
 
-        # Sort without regard to capitalization and use a fixed mask instead of passwords.
+        self._populate_display_all_table(entry_table, entries)
+
+    @staticmethod
+    def _populate_display_all_table(entry_table, entries):
+        """Replace the table rows with sorted entries and masked passwords."""
+        entry_table.delete(*entry_table.get_children())
+        # Sort without regard to capitalization; never put plaintext passwords in the table.
         sorted_entries = sorted(
             entries, key=lambda saved_entry: saved_entry.description.casefold()
         )

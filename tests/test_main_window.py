@@ -3,7 +3,7 @@
 import tempfile
 import unittest
 from pathlib import Path
-from types import SimpleNamespace
+from types import MethodType, SimpleNamespace
 from unittest.mock import Mock, patch
 
 from application.password_entry_service import (
@@ -57,11 +57,18 @@ class MainWindowPasswordEntryTests(unittest.TestCase):
 
     def make_window(self, description="Email", username="fake-user",
                     password="fake-password"):
-        return SimpleNamespace(
+        window = SimpleNamespace(
             description=Mock(get=Mock(return_value=description)),
             entry_username=Mock(get=Mock(return_value=username)),
             entry_password=Mock(get=Mock(return_value=password)),
+            _display_all_window=None,
+            _display_all_table=None,
         )
+        window._refresh_open_display_all_window = MethodType(
+            MainWindow._refresh_open_display_all_window, window
+        )
+        window._populate_display_all_table = MainWindow._populate_display_all_table
+        return window
 
     def test_update_saves_entry_before_showing_success(self):
         window = self.make_window()
@@ -92,6 +99,10 @@ class MainWindowPasswordEntryTests(unittest.TestCase):
 
     def test_empty_fields_show_error_without_loading_storage(self):
         window = self.make_window(description="   ")
+        list_window = Mock()
+        tree = Mock()
+        window._display_all_window = list_window
+        window._display_all_table = tree
 
         with patch("gui.main_window.PasswordEntryStorage") as storage_class, patch(
             "gui.main_window.messagebox.showerror"
@@ -102,6 +113,64 @@ class MainWindowPasswordEntryTests(unittest.TestCase):
         error.assert_called_once()
         self.assertEqual(error.call_args.args[0], "Missing Information")
         success.assert_not_called()
+        list_window.winfo_exists.assert_not_called()
+        tree.delete.assert_not_called()
+        tree.insert.assert_not_called()
+
+    def test_successful_save_refreshes_open_display_all_table(self):
+        window = self.make_window()
+        list_window = Mock()
+        list_window.winfo_exists.return_value = True
+        tree = Mock()
+        tree.get_children.return_value = ("old-row",)
+        window._display_all_window = list_window
+        window._display_all_table = tree
+        entries = [
+            PasswordEntry("zeta", "fake-zeta-user", "secret-zeta"),
+            PasswordEntry("Beta", "fake-beta-user", "secret-beta"),
+        ]
+        storage = SimpleNamespace(entries=entries, save_entries=Mock())
+
+        with patch(
+            "gui.main_window.PasswordEntryStorage", return_value=storage
+        ), patch("gui.main_window.tk.Toplevel") as new_window, patch(
+            "gui.main_window.messagebox.showinfo"
+        ) as success:
+            MainWindow._save_password_entry(window)
+
+        tree.delete.assert_called_once_with("old-row")
+        self.assertEqual(
+            [call.kwargs["values"] for call in tree.insert.call_args_list],
+            [
+                ("Beta", "fake-beta-user", "********"),
+                ("Email", "fake-user", "********"),
+                ("zeta", "fake-zeta-user", "********"),
+            ],
+        )
+        self.assertNotIn("secret-beta", repr(tree.insert.call_args_list))
+        self.assertNotIn("secret-zeta", repr(tree.insert.call_args_list))
+        new_window.assert_not_called()
+        success.assert_called_once()
+
+    def test_successful_save_with_closed_display_all_window_is_safe(self):
+        window = self.make_window()
+        list_window = Mock()
+        list_window.winfo_exists.return_value = False
+        tree = Mock()
+        window._display_all_window = list_window
+        window._display_all_table = tree
+        storage = SimpleNamespace(entries=[], save_entries=Mock())
+
+        with patch(
+            "gui.main_window.PasswordEntryStorage", return_value=storage
+        ), patch("gui.main_window.messagebox.showinfo") as success:
+            MainWindow._save_password_entry(window)
+
+        self.assertIsNone(window._display_all_window)
+        self.assertIsNone(window._display_all_table)
+        tree.delete.assert_not_called()
+        tree.insert.assert_not_called()
+        success.assert_called_once()
 
     def test_each_empty_update_field_is_rejected(self):
         for field_name in ("description", "entry_username", "entry_password"):
@@ -132,6 +201,10 @@ class MainWindowPasswordEntryTests(unittest.TestCase):
 
     def test_duplicate_description_is_rejected_case_insensitively(self):
         window = self.make_window(description=" email ")
+        list_window = Mock()
+        tree = Mock()
+        window._display_all_window = list_window
+        window._display_all_table = tree
         storage = SimpleNamespace(
             entries=[PasswordEntry("Email", "saved-user", "saved-password")],
             save_entries=Mock(),
@@ -146,9 +219,16 @@ class MainWindowPasswordEntryTests(unittest.TestCase):
         error.assert_called_once()
         self.assertEqual(error.call_args.args[0], "Duplicate Description")
         success.assert_not_called()
+        list_window.winfo_exists.assert_not_called()
+        tree.delete.assert_not_called()
+        tree.insert.assert_not_called()
 
     def test_storage_failure_shows_error_without_success(self):
         window = self.make_window()
+        list_window = Mock()
+        tree = Mock()
+        window._display_all_window = list_window
+        window._display_all_table = tree
         storage = SimpleNamespace(
             entries=[],
             save_entries=Mock(
@@ -169,6 +249,9 @@ class MainWindowPasswordEntryTests(unittest.TestCase):
             parent=window,
         )
         success.assert_not_called()
+        list_window.winfo_exists.assert_not_called()
+        tree.delete.assert_not_called()
+        tree.insert.assert_not_called()
 
     def test_search_loads_matching_credentials_without_unmasking_password(self):
         window = self.make_window(description=" email ")
@@ -239,13 +322,14 @@ class MainWindowPasswordEntryTests(unittest.TestCase):
         info.assert_not_called()
 
     def test_display_all_sorts_descriptions_and_masks_passwords(self):
-        window = SimpleNamespace()
+        window = self.make_window()
         entries = [
             PasswordEntry("zeta", "fake-zeta-user", "secret-zeta"),
             PasswordEntry("Beta", "fake-beta-user", "secret-beta"),
             PasswordEntry("alpha", "fake-alpha-user", "secret-alpha"),
         ]
         tree = Mock()
+        tree.get_children.return_value = ()
 
         with patch(
             "gui.main_window.PasswordEntryStorage",
@@ -368,6 +452,7 @@ class MainWindowPasswordEntryTests(unittest.TestCase):
             error.assert_not_called()
 
             tree = Mock()
+            tree.get_children.return_value = ()
             with patch(
                 "gui.main_window.PasswordEntryStorage", side_effect=create_storage
             ), patch("gui.main_window.tk.Toplevel", return_value=Mock()), patch(
@@ -375,7 +460,7 @@ class MainWindowPasswordEntryTests(unittest.TestCase):
             ), patch("gui.main_window.ttk.Treeview", return_value=tree), patch(
                 "gui.main_window.ttk.Scrollbar", return_value=Mock()
             ):
-                MainWindow._display_all_password_entries(SimpleNamespace())
+                MainWindow._display_all_password_entries(self.make_window())
 
             displayed_values = [
                 call.kwargs["values"] for call in tree.insert.call_args_list

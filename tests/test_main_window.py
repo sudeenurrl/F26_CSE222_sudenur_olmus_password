@@ -648,6 +648,59 @@ class MainWindowPasswordEntryTests(unittest.TestCase):
             self.assertNotIn("fake-zeta-secret", repr(displayed_values))
             self.assertEqual(entries_file.read_bytes(), saved_file_contents)
 
+    def test_saved_entry_is_searchable_and_refreshes_open_display_all(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            entries_file = Path(temporary_directory) / "entries.json"
+            PasswordEntryStorage(entries_file).save_entries(
+                [PasswordEntry("Forum", "saved-user", "saved-password")]
+            )
+
+            def create_storage():
+                return PasswordEntryStorage(entries_file)
+
+            window = self.make_window()
+            list_window = Mock()
+            list_window.winfo_exists.return_value = True
+            tree = Mock()
+            tree.get_children.side_effect = [(), ("previous-row",)]
+
+            with patch(
+                "gui.main_window.PasswordEntryStorage", side_effect=create_storage
+            ) as storage_class, patch(
+                "gui.main_window.tk.Toplevel", return_value=list_window
+            ) as toplevel, patch(
+                "gui.main_window.ttk.Frame", return_value=Mock()
+            ), patch(
+                "gui.main_window.ttk.Treeview", return_value=tree
+            ), patch(
+                "gui.main_window.ttk.Scrollbar", return_value=Mock()
+            ), patch(
+                "gui.main_window.messagebox.showerror"
+            ) as error, patch(
+                "gui.main_window.messagebox.showinfo"
+            ) as success:
+                MainWindow._display_all_password_entries(window)
+                MainWindow._save_password_entry(window)
+                MainWindow._search_password_entry(window)
+
+            self.assertEqual(storage_class.call_count, 3)
+            toplevel.assert_called_once_with(window)
+            tree.delete.assert_any_call("previous-row")
+            displayed_values = [
+                call.kwargs["values"] for call in tree.insert.call_args_list
+            ]
+            self.assertEqual(
+                displayed_values[-2:],
+                [
+                    ("Email", "fake-user", "********"),
+                    ("Forum", "saved-user", "********"),
+                ],
+            )
+            window.entry_username.set.assert_called_once_with("fake-user")
+            window.entry_password.set.assert_called_once_with("fake-password")
+            error.assert_not_called()
+            success.assert_called_once()
+
     def test_corrupted_storage_is_reported_by_search_and_display_all(self):
         with tempfile.TemporaryDirectory() as temporary_directory:
             entries_file = Path(temporary_directory) / "entries.json"

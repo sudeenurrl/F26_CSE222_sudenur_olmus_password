@@ -54,12 +54,14 @@ they do not open windows or change your saved accounts.
 - Write accounts through a temporary file so failed saves preserve existing data.
 - Save password entries with unique descriptions in `data/password_entries.json`.
 - Search for a saved entry by description and fill its username and masked password into the form.
-- Display all saved descriptions and usernames alphabetically, with passwords masked.
+- Open Display All in a separate window with saved entries and clear Description, Username, and Password column headings.
+- Sort entries alphabetically by description, mask passwords in the table, and provide vertical scrolling for longer lists.
+- Reuse an existing Display All window rather than opening duplicates; after a successful save, automatically refresh its table.
 - Log in and log out; account dialogs are modal.
 
 After login, Update saves the description, username, and password entered in the
-form. Search loads a matching saved username and password. Display All opens a
-separate window with entries sorted by description; passwords remain masked.
+form. Search loads a matching saved username and password. Display All opens or
+raises the separate saved-entry window.
 
 ## Project structure
 
